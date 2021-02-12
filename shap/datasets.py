@@ -34,6 +34,16 @@ def boston(display=False):
     df = pd.DataFrame(data=d.data, columns=d.feature_names) # pylint: disable=E1101
     return df, d.target # pylint: disable=E1101
 
+
+def linnerud(display=False):
+    """ Return the linnerud data in a nice package (multi-target regression). """
+
+    d = sklearn.datasets.load_linnerud()
+    X = pd.DataFrame(d.data, columns=d.feature_names) # pylint: disable=E1101
+    y = pd.DataFrame(d.target, columns=d.target_names) # pylint: disable=E1101
+    return X, y # pylint: disable=E1101
+
+
 def imdb(display=False):
     """ Return the clssic IMDB sentiment analysis training data in a nice package.
 
@@ -140,17 +150,6 @@ def nhanesi(display=False):
     else:
         return X, np.array(y)
 
-def cric(display=False):
-    """ A nicely packaged version of CRIC data with progression to ESRD within 4 years as the label.
-    """
-    X = pd.read_csv(cache(github_data_url + "CRIC_time_4yearESRD_X.csv"))
-    y = np.loadtxt(cache(github_data_url + "CRIC_time_4yearESRD_y.csv"))
-    if display:
-        X_display = X.copy()
-        return X_display, y
-    else:
-        return X, y
-
 
 def corrgroups60(display=False):
     """ Correlated Groups 60
@@ -229,6 +228,17 @@ def a1a():
     """ A sparse dataset in scipy csr matrix format.
     """
     return sklearn.datasets.load_svmlight_file(cache(github_data_url + 'a1a.svmlight'))
+
+
+def rank():
+    """ Ranking datasets from lightgbm repository.
+    """
+    rank_data_url = 'https://raw.githubusercontent.com/Microsoft/LightGBM/master/examples/lambdarank/'
+    x_train, y_train = sklearn.datasets.load_svmlight_file(cache(rank_data_url + 'rank.train'))
+    x_test, y_test = sklearn.datasets.load_svmlight_file(cache(rank_data_url + 'rank.test'))
+    q_train = np.loadtxt(cache(rank_data_url + 'rank.train.query'))
+    q_test = np.loadtxt(cache(rank_data_url + 'rank.test.query'))
+    return x_train, y_train, x_test, y_test, q_train, q_test
 
 
 def cache(url, file_name=None):

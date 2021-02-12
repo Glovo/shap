@@ -1,16 +1,15 @@
-import matplotlib
-import numpy as np
-import scipy as sp
-matplotlib.use('Agg')
-import shap
 
 
 def test_null_model_small():
+    import shap
+    import numpy as np
     explainer = shap.KernelExplainer(lambda x: np.zeros(x.shape[0]), np.ones((2, 4)), nsamples=100)
     e = explainer.explain(np.ones((1, 4)))
     assert np.sum(np.abs(e)) < 1e-8
 
 def test_null_model():
+    import shap
+    import numpy as np
     explainer = shap.KernelExplainer(lambda x: np.zeros(x.shape[0]), np.ones((2, 10)), nsamples=100)
     e = explainer.explain(np.ones((1, 10)))
     assert np.sum(np.abs(e)) < 1e-8
@@ -19,12 +18,13 @@ def test_front_page_model_agnostic():
     import sklearn
     import shap
     from sklearn.model_selection import train_test_split
+    import numpy as np
 
     # print the JS visualization code to the notebook
     shap.initjs()
 
     # train a SVM classifier
-    X_train, X_test, Y_train, Y_test = train_test_split(*shap.datasets.iris(), test_size=0.2, random_state=0)
+    X_train, X_test, Y_train, Y_test = train_test_split(*shap.datasets.iris(), test_size=0.1, random_state=0)
     svm = sklearn.svm.SVC(kernel='rbf', probability=True)
     svm.fit(X_train, Y_train)
 
@@ -39,12 +39,13 @@ def test_front_page_model_agnostic_rank():
     import sklearn
     import shap
     from sklearn.model_selection import train_test_split
+    import numpy as np
 
     # print the JS visualization code to the notebook
     shap.initjs()
 
     # train a SVM classifier
-    X_train, X_test, Y_train, Y_test = train_test_split(*shap.datasets.iris(), test_size=0.2, random_state=0)
+    X_train, X_test, Y_train, Y_test = train_test_split(*shap.datasets.iris(), test_size=0.1, random_state=0)
     svm = sklearn.svm.SVC(kernel='rbf', probability=True)
     svm.fit(X_train, Y_train)
 
@@ -78,9 +79,11 @@ def test_kernel_shap_with_a1a_sparse_zero_background():
     from sklearn.model_selection import train_test_split
     from sklearn.linear_model import LinearRegression
     import shap
+    import numpy as np
+    import scipy as sp
 
-    X, y = shap.datasets.a1a()
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=0)
+    X, y = shap.datasets.a1a() # pylint: disable=unbalanced-tuple-unpacking
+    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=0)
     linear_model = LinearRegression()
     linear_model.fit(x_train, y_train)
 
@@ -91,13 +94,16 @@ def test_kernel_shap_with_a1a_sparse_zero_background():
     explainer.shap_values(x_test)
 
 def test_kernel_shap_with_a1a_sparse_nonzero_background():
+    import numpy as np
     np.set_printoptions(threshold=100000)
     from sklearn.model_selection import train_test_split
     from sklearn.linear_model import LinearRegression
     from sklearn.utils.sparsefuncs import csc_median_axis_0
     import shap
+    import scipy as sp
+    np.random.seed(0)
 
-    X, y = shap.datasets.a1a()
+    X, y = shap.datasets.a1a() # pylint: disable=unbalanced-tuple-unpacking
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=0)
     linear_model = LinearRegression()
     linear_model.fit(x_train, y_train)
@@ -106,26 +112,24 @@ def test_kernel_shap_with_a1a_sparse_nonzero_background():
     median = sp.sparse.csr_matrix(median_dense)
     explainer = shap.KernelExplainer(linear_model.predict, median)
     shap_values = explainer.shap_values(x_test)
-    # Compare to dense results
-    x_train_dense = x_train.toarray()
 
     def dense_to_sparse_predict(data):
         sparse_data = sp.sparse.csr_matrix(data)
         return linear_model.predict(sparse_data)
 
-    explainer_dense = shap.KernelExplainer(linear_model.predict, median_dense.reshape((1, len(median_dense))))
+    explainer_dense = shap.KernelExplainer(dense_to_sparse_predict, median_dense.reshape((1, len(median_dense))))
     x_test_dense = x_test.toarray()
     shap_values_dense = explainer_dense.shap_values(x_test_dense)
     # Validate sparse and dense result is the same
-    # Note: The default tolerance is almost always fine, but in one out of every
-    # 20 runs or so it fails so decreasing it by two orders of magnitude from the default
-    assert(np.allclose(shap_values, shap_values_dense, rtol=1e-02, atol=1e-04))
+    assert(np.allclose(shap_values, shap_values_dense, rtol=1e-02, atol=1e-01))
 
 def test_kernel_shap_with_high_dim_sparse():
     # verifies we can run on very sparse data produced from feature hashing
     from sklearn.model_selection import train_test_split
     from sklearn.linear_model import LinearRegression
     import shap
+    import numpy as np
+    import scipy as sp
     remove = ('headers', 'footers', 'quotes')
     categories = [
         'alt.atheism',
@@ -152,3 +156,89 @@ def test_kernel_shap_with_high_dim_sparse():
     background = sp.sparse.csr_matrix(shape, dtype=x_train.dtype)
     explainer = shap.KernelExplainer(linear_model.predict, background)
     shap_values = explainer.shap_values(x_test)
+
+def test_kernel_sparse_vs_dense_multirow_background():
+    import sklearn
+    import shap
+    from sklearn.model_selection import train_test_split
+    from sklearn.linear_model import LogisticRegression
+    import numpy as np
+    import scipy as sp
+
+    # train a logistic regression classifier
+    X_train, X_test, Y_train, _ = train_test_split(*shap.datasets.iris(), test_size=0.1, random_state=0)
+    lr = LogisticRegression(solver='lbfgs')
+    lr.fit(X_train, Y_train)
+
+    # use Kernel SHAP to explain test set predictions with dense data
+    explainer = shap.KernelExplainer(lr.predict_proba, X_train, nsamples=100, link="logit", l1_reg="rank(3)")
+    shap_values = explainer.shap_values(X_test)
+
+    X_sparse_train = sp.sparse.csr_matrix(X_train)
+    X_sparse_test = sp.sparse.csr_matrix(X_test)
+
+    lr_sparse = LogisticRegression(solver='lbfgs')
+    lr_sparse.fit(X_sparse_train, Y_train)
+
+    # use Kernel SHAP again but with sparse data
+    sparse_explainer = shap.KernelExplainer(lr.predict_proba, X_sparse_train, nsamples=100, link="logit", l1_reg="rank(3)")
+    sparse_shap_values = sparse_explainer.shap_values(X_sparse_test)
+
+    assert(np.allclose(shap_values, sparse_shap_values, rtol=1e-05, atol=1e-05))
+
+    # Use sparse evaluation examples with dense background
+    sparse_sv_dense_bg = explainer.shap_values(X_sparse_test)
+    assert(np.allclose(shap_values, sparse_sv_dense_bg, rtol=1e-05, atol=1e-05))
+
+
+def test_linear():
+    """tests that KernelExplainer returns the correct result when the model is linear
+    (as per corollary 1 of https://arxiv.org/abs/1705.07874)"""
+    import numpy as np
+    import shap
+
+    np.random.seed(2)
+    x = np.random.normal(size=(200, 3), scale=1)
+
+    # a linear model
+    def f(x):
+        return x[:, 0] + 2.0*x[:, 1]
+
+    phi = shap.KernelExplainer(f, x).shap_values(x, l1_reg="num_features(2)", silent=True)
+    assert phi.shape == x.shape
+
+    # corollary 1
+    expected = (x - x.mean(0)) * np.array([1.0, 2.0, 0.0])
+
+    np.testing.assert_allclose(expected, phi, rtol=1e-3)
+
+
+def test_non_numeric():
+    import sklearn
+    from sklearn.pipeline import Pipeline
+    import shap
+    import numpy as np
+
+    # create dummy data
+    X = np.array([['A', '0', '0'], ['A', '1', '0'], ['B', '0', '0'], ['B', '1', '0'], ['A', '1', '0']])
+    y = np.array([0, 1, 2, 3, 4])
+
+    # build and train the pipeline
+    pipeline = Pipeline([('oneHotEncoder', sklearn.preprocessing.OneHotEncoder()),
+                     ('linear', sklearn.linear_model.LinearRegression())])
+    pipeline.fit(X, y)
+
+    # use KernelExplainer
+    explainer = shap.KernelExplainer(pipeline.predict, X, nsamples=100)
+    shap_values = explainer.explain(X[0,:].reshape(1, -1))
+
+    assert np.abs(explainer.expected_value + shap_values.sum(0) - pipeline.predict(X[0,:].reshape(1, -1))[0]) < 1e-4
+    assert shap_values[2] == 0
+
+    # tests for shap.KernelExplainer.not_equal
+    assert shap.KernelExplainer.not_equal(0, 0) == shap.KernelExplainer.not_equal('0', '0')
+    assert shap.KernelExplainer.not_equal(0, 1) == shap.KernelExplainer.not_equal('0', '1')
+    assert shap.KernelExplainer.not_equal(0, np.nan) == shap.KernelExplainer.not_equal('0', np.nan)
+    assert shap.KernelExplainer.not_equal(0, np.nan) == shap.KernelExplainer.not_equal('0', None)
+    assert shap.KernelExplainer.not_equal(np.nan, 0) == shap.KernelExplainer.not_equal(np.nan, '0')
+    assert shap.KernelExplainer.not_equal(np.nan, 0) == shap.KernelExplainer.not_equal(None, '0')
