@@ -14,7 +14,7 @@
   "dependencies": {
     "d3": "^4",
     "lodash": "^4",
-    "material-ui": "^0.16",
+    "material-ui": "^0.20.0",
     "react": "^15",
     "react-dom": "^15",
     "react-router": "^3",
