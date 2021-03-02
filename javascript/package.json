@@ -19,8 +19,8 @@
   "dependencies": {
     "d3": "^4",
     "lodash": "^4",
-    "react": "^15",
-    "react-dom": "^15",
+    "react": "^15.7.0",
+    "react-dom": "^15.7.0",
     "react-tap-event-plugin": "^2"
   },
   "devDependencies": {
